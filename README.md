@@ -1,1 +1,1 @@
-# Navigation instruction display for Komoot BLE connect
+# YOKAI - Navigation instruction display for Komoot BLE connect

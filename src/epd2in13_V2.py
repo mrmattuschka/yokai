@@ -142,7 +142,7 @@ class EPD:
             self.send_data(0x00)
 
             self.send_command(0x11) #data entry mode
-            self.send_data(0x01)
+            self.send_data(0x01) # <- GxEPD used 0x03!
 
             self.send_command(0x44) #set Ram-X address start/end position
             self.send_data(0x00)
@@ -155,7 +155,7 @@ class EPD:
             self.send_data(0x00)
             
             self.send_command(0x3C) #BorderWavefrom
-            self.send_data(0x03)
+            self.send_data(0x03) # <- Change this to remove border?
 
             self.send_command(0x2C)     #VCOM Voltage
             self.send_data(0x55)    #
@@ -308,10 +308,10 @@ class EPD:
                 self.send_data(image[i + j * linewidth])   
                 
                 
-        self.send_command(0x26)
-        for j in range(0, self.height):
-            for i in range(0, linewidth):
-                self.send_data(image[i + j * linewidth])  
+        # self.send_command(0x26)
+        # for j in range(0, self.height):
+        #     for i in range(0, linewidth):
+        #         self.send_data(image[i + j * linewidth])  
         self.TurnOnDisplay()
     
     def Clear(self, color):
@@ -337,6 +337,15 @@ class EPD:
         epdconfig.delay_ms(100)
 
         epdconfig.module_exit()
+
+    def display_cycle(self, image, cycle=True):
+        if cycle:
+            self.init(self.FULL_UPDATE)
+            self.displayPartBaseImage(image)
+            self.init(self.PART_UPDATE)
+        else:
+            self.displayPartial(image)
+
 
 ### END OF FILE ###
 

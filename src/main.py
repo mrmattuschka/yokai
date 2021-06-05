@@ -1,15 +1,11 @@
 __version__ = "0.1.0"
+__yokai_model__ = "1"
 
 import sync_ubt
 import struct
 import time
-import DisplayRenderer
-import framebuf
 import epd2in13_V2
-
-
-# get SyncBLE interface
-sbt = sync_ubt.SyncBLE()
+from utils import Logger, DisplayRenderer
 
 komoot_svc_rev = b'lC\xb3\x1d\x17\x0f\xb2\xa2\xa8O/\xd9(\xe1\xc1q' # Stuff to locate komoot dev in adv mode
 komoot_svc_uuid = "71C1E128-D92F-4FA8-A2B2-0F171DB3436C"
@@ -20,30 +16,65 @@ komoot_addr = None
 komoot_dev = None
 nav_interval = 2
 
+global last_nav
+last_nav = None
+
+# failure counter
+global failures
+failures = 0
+
+
+log = Logger(max_len=12)
+log.log("YOKAI model {m} firmware v{v}".format(m = __yokai_model__, v = __version__))
+
 # Display properties
 w = 250
 h = 128
 
+DPR = DisplayRenderer(w, h, mode="blank", logger=log)
+
 # Initialize E-paper display
+log.log("Initializing EPD...")
 EPD = epd2in13_V2.EPD()
 EPD.init(EPD.FULL_UPDATE)
-EPD.Clear(0xFF)
 
-# Create framebuffer to render the display
-DISPLAY_BA = bytearray(w*(h//8))
-DISPLAY_FB = framebuf.FrameBuffer(
-    memoryview(DISPLAY_BA),
-    w, 
-    h, 
-    framebuf.MONO_VLSB # For landscape mode
-)
+# Set conditional EPD update as logger callback
+def logger_display_callback(Logger):
+    if DPR.mode == "term":
+        render = DPR.render()
+        EPD.display_cycle(render, cycle=False)
+        del render
 
+DPR.mode = "term"
+render = DPR.render()
+EPD.display_cycle(render, cycle=True) # Cycle once
+del render
+
+log.callback = logger_display_callback
+
+# get SyncBLE interface
+log.log("Initializing BLE interface...")
+sbt = sync_ubt.SyncBLE(debug_logger=log.log)
 
 class KomootError(Exception):
     pass
 
-
 def setup_komoot_dev(timeout=10, interval_ms=1000):
+    """
+    Detect and connect to a nearby BLE peripheral running Komoot.
+
+    Parameters
+    ----------
+    timeout: int, optional
+        time to wait in seconds for successful connection before failing (default 10).
+    interval_ms: int, optional
+        scanning interval in milliseconds (default 1000)
+
+    Returns
+    ----------
+    a sync_ubt.Peripheral instance referring to the connected device
+    """
+
     start = time.time()
     while time.time() < (start + timeout):
         devs = sbt.scan(interval_ms)
@@ -54,45 +85,44 @@ def setup_komoot_dev(timeout=10, interval_ms=1000):
             if adv_data.get("07", None) != komoot_svc_rev:
                 continue
 
-            print("Found device running Komoot:", dev["addr_decoded"])
-            kom_dev = sbt.connect(dev["addr_type"], dev["addr_decoded"])
+            log.log("Found device running Komoot:", dev["addr_decoded"])
+            komoot_dev = sbt.connect(dev["addr_type"], dev["addr_decoded"])
 
-            if kom_dev is None:
+            if komoot_dev is None:
                 raise KomootError("Unable to connect to Komoot device")
             else:
                 # Get device name from generic access SVC
                 devname = "Unknown device"
 
-                generic_acc = kom_dev.get_service(0x1800)
+                generic_acc = komoot_dev.get_service(0x1800)
                 if generic_acc:
                     devname_chr = generic_acc[0].get_characteristic(0x2A00)
                     if devname_chr:
                         devname = devname_chr[0].read().decode()
-                        kom_dev.name = devname
+                        komoot_dev.name = devname
 
-                print("Connected to device: '{}'".format(devname))
+                log.log("Connected to device: '{}'".format(devname))
 
                 # Find Komoot SVC & CHR, register notify
-                komoot_svc = kom_dev.get_service(komoot_svc_uuid)
+                komoot_svc = komoot_dev.get_service(komoot_svc_uuid)
 
                 if not komoot_svc:
                     raise KomootError("No Komoot SVC found")
                 else:
-                    print("Found Komoot SVC, locating CHR...")
+                    log.log("Found Komoot SVC, locating CHR...")
                     komoot_chr = komoot_svc[0].get_characteristic(komoot_chr_uuid)
 
                     if not komoot_chr:
                         raise KomootError("No Komoot CHR found")
                     else:
-                        print("Found Komoot CHR, registering...")
+                        log.log("Found Komoot CHR, registering...")
                         komoot_chr[0].register_notify()
-                        kom_dev.komoot_chr = komoot_chr[0]
-                        print("Setup Complete.")
-                        return kom_dev
+                        komoot_dev.komoot_chr = komoot_chr[0]
+                        log.log("Setup complete. Happy hiking!")
+                        return komoot_dev
 
     else:
         raise KomootError("No device running Komoot found")
-
 
 def decode_nav_data(data):
     """
@@ -111,52 +141,63 @@ def decode_nav_data(data):
 
 def nav_routine():
     global komoot_dev
-   
-    # TODO: handle failure
-    try:
-        if komoot_dev is None:
-            komoot_dev = setup_komoot_dev()
+    global last_nav
+    global failures
 
-        if komoot_dev.connected == False:
-            if komoot_dev.connect() != 0: # Returns zero on failure
-                komoot_dev = None
-                komoot_dev = setup_komoot_dev()
-    except (sync_ubt.TimeoutError, KomootError) as err:
-        print(err, str(err))
-        time.sleep(10)
-    else:
-        try:
-            nav_data = komoot_dev.komoot_chr.read()
-            nav_id, nav_dir, dist, street = decode_nav_data(nav_data)
-            if nav_id is not None:
-                print(nav_dir, dist, street)
-                DISPLAY_FB.fill(0xFF)
-                DisplayRenderer.assemble_nav(DISPLAY_FB, nav_dir, dist, street)
+    if komoot_dev is None:
+        log.log("Searching for Komoot device...")
+        DPR.mode = "blank"
+        komoot_dev = setup_komoot_dev()
+        DPR.mode = "term"
+        log.callback(None)
 
-                render = [DISPLAY_BA[row * 250 + col] for col in range(w) for row in range(h//8)] # OPTIMIZE ME!
-                render = bytearray(reversed(render))
+    if not komoot_dev.connected: # Returns zero on failure/no connection
+        log.log("Komoot device is not connected, reconnecting...")
+        komoot_dev = None
+        komoot_dev = setup_komoot_dev()
 
-                EPD.display(render)
-
-            else:
-                print("No nav data available.")
-                DISPLAY_FB.fill(0xFF)
-                DisplayRenderer.assemble_nav(DISPLAY_FB, 30, 0, "No nav data")
-
-                render = [DISPLAY_BA[row * 250 + col] for col in range(w) for row in range(h//8)] # OPTIMIZE ME!
-                render = bytearray(reversed(render))
-
-                EPD.display(render)
-                
-        except sync_ubt.TimeoutError:
-            print("BLE response timeout.")
-            time.sleep(10)
-        else:
-            time.sleep(5)
+    if komoot_dev.connected:
+        DPR.mode = "nav"
         
+        nav_data = komoot_dev.komoot_chr.read()
+        nav_id, nav_dir, dist, street = decode_nav_data(nav_data)
+        
+        if nav_id is not None:
+            log.log(nav_id, nav_dir, dist, street)
+            DPR.nav_data = [nav_id, nav_dir, dist, street]
+            render = DPR.render()
 
-while True:
+            if (dist > 200) & (nav_id != last_nav): # only do full refresh if we have more than 200+m amd new instruction
+                log.log("Cycling display...")
+                EPD.display_cycle(render, cycle=True)
+                time.sleep(5)
+            else:
+                EPD.display_cycle(render, cycle=False)
+            del render
+            last_nav = nav_id
+
+        else:
+            log.log("No nav data available.")
+            DPR.nav_data = [None, 30, 0, "No nav data"]
+            render = DPR.render()
+            EPD.display_cycle(render, cycle=True)
+            del render
+            time.sleep(5)
+    else:
+        raise KomootError("Komoot device not connected")
+
+
+while failures < 10:
     try:
         nav_routine()
-    except:
-        time.sleep(10)
+    except Exception as e:
+        DPR.mode = "term"
+        log.log(e.__class__.__name__ + ':', *e.args)
+        failures += 1
+        time.sleep(5)
+    else:
+        # If nav_routine succeeds, reset failure counter.
+        failures = 0
+else:
+    DPR.mode = "term"
+    log.log("Too many failures. Cycle device to try again.")

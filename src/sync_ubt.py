@@ -133,7 +133,7 @@ class SyncBLE():
     Wrapper for ubluetooth.BLE that turns its asynchrous factory behavior into a synchrous one.
     """
 
-    def __init__(self, timeout=30, notify_callback=None, debug=False):
+    def __init__(self, timeout=30, notify_callback=None, debug=False, debug_logger=None):
         """
         Wrapper for ubluetooth.BLE that synchronizes its asynchrous behavior
 
@@ -146,6 +146,8 @@ class SyncBLE():
             Must accept the following positional arguments: conn_handle, value_handle, notify_data. Default None.
         debug: bool, optional
             Whether or not to print additional debugging information. Default False.
+        debug_logger: function, optional.
+            Logging function to call for logging. If no logging function is passed, debug output will be printed to console.
         """
         self.busy = _Busy()
 
@@ -160,6 +162,14 @@ class SyncBLE():
 
         self.connections = {}
         self.notify_callback = notify_callback
+
+        if debug_logger is None:
+            self.log = print
+        else:
+            if callable(debug_logger):
+                self.log = debug_logger
+            else:
+                raise ValueError("debug_logger is not a callable.")
 
     def scan(self, duration_ms=10000, *args):
         """
@@ -210,7 +220,7 @@ class SyncBLE():
         Internal interrupt request handler.
         """
         if self._debug:
-            print("Event:", event)
+            self.log("Event:", event)
 
         if event == IRQ_SCAN_RESULT:
             addr_type, addr, connectable, rssi, adv_data = data
@@ -244,11 +254,11 @@ class SyncBLE():
         elif event == IRQ_PERIPHERAL_DISCONNECT:
             conn_handle, addr_type, addr = data
             if conn_handle == 65535:
-                print("ERROR: BT connection failed!") # TODO hand this to the calling function
+                self.log("ERROR: BT connection failed!") # TODO hand this to the calling function
                 self._last_conn = None
             else:
                 self.connections[conn_handle].connected = False
-                print("BT device {0} disconnected.".format(conn_handle))
+                self.log("BT device {0} disconnected.".format(conn_handle))
                 # del self.connections[conn_handle]
             self.busy.set_clear()
 
@@ -590,7 +600,7 @@ class Characteristic():
         else:
             self.ble.gattc_write(self.conn_handle, self.value_handle, data, 0)
 
-    def read(self):
+    def read(self, offset=0):
         """
         Read the characteristic's value.
 
@@ -602,7 +612,7 @@ class Characteristic():
 
         self._cache.clear()
         self.busy.set_busy()
-        self.ble.gattc_read(self.conn_handle, self.value_handle)
+        self.ble.gattc_read(self.conn_handle, self.value_handle + offset)
         self.busy.wait()
         if self._cache[-1] == 0:
             return self._cache[-2]
