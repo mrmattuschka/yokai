@@ -1,4 +1,4 @@
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 __yokai_model__ = "1"
 
 import sync_ubt
@@ -6,6 +6,10 @@ import struct
 import time
 import epd2in13_V2
 from utils import Logger, DisplayRenderer
+from machine import Pin, ADC
+
+class KomootError(Exception):
+    pass
 
 komoot_svc_rev = b'lC\xb3\x1d\x17\x0f\xb2\xa2\xa8O/\xd9(\xe1\xc1q' # Stuff to locate komoot dev in adv mode
 komoot_svc_uuid = "71C1E128-D92F-4FA8-A2B2-0F171DB3436C"
@@ -56,8 +60,13 @@ log.callback = logger_display_callback
 log.log("Initializing BLE interface...")
 sbt = sync_ubt.SyncBLE(debug_logger=log.log)
 
-class KomootError(Exception):
-    pass
+# Voltage monitor
+bat_monitor = ADC(Pin(34))
+bat_monitor.atten(ADC.ATTN_11DB)
+
+def get_bat_voltage():
+    U = (bat_monitor.read()/4095)*3.6*2
+    return U
 
 def setup_komoot_dev(timeout=10, interval_ms=1000):
     """
@@ -158,6 +167,9 @@ def nav_routine():
 
     if komoot_dev.connected:
         DPR.mode = "nav"
+
+        bat_voltage = get_bat_voltage()
+        DPR.bat_voltage = bat_voltage
         
         nav_data = komoot_dev.komoot_chr.read()
         nav_id, nav_dir, dist, street = decode_nav_data(nav_data)
@@ -192,7 +204,7 @@ while failures < 10:
         nav_routine()
     except Exception as e:
         DPR.mode = "term"
-        log.log(e.__class__.__name__ + ':', *e.args)
+        log.log(e.__class__.__name__ + ':', str(e))
         failures += 1
         time.sleep(5)
     else:

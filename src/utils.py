@@ -29,7 +29,7 @@ def process_dist(dist):
     else:
         return "{}m".format(round(dist, -1))
 
-def assemble_nav(buf: framebuf.FrameBuffer, direction, dist, street):
+def assemble_nav(buf: framebuf.FrameBuffer, direction, dist, street, bat_voltage):
     dist_str = process_dist(dist)
     
     buf.blit(load_arrow(direction), 5, 27) 
@@ -44,6 +44,8 @@ def assemble_nav(buf: framebuf.FrameBuffer, direction, dist, street):
 
     street_offset = 125 - len(street) * 4 # Center minus half string length (8px per char)
     buf.text(street.upper(), street_offset, 100, 0)
+
+    buf.text("BAT:{:.2f}V".format(bat_voltage), 22*8, 8, 0)
 
 def assemble_terminal(buf: framebuf.FrameBuffer, log, offset=(0,0)):
     for idx, line in enumerate(log):
@@ -63,6 +65,7 @@ class DisplayRenderer():
         self.h = h
         self.mode = mode
         self.nav_data = [None, 30, 0, "No nav data"]
+        self.bat_voltage = 0
         self.logger = logger
 
     def convert_ba_to_epd(self):
@@ -77,7 +80,7 @@ class DisplayRenderer():
         if self.mode == "term" and self.logger is not None:
             assemble_terminal(self.buf, self.logger.buffer, offset=(0, 8))
         if self.mode == "nav":
-            assemble_nav(self.buf, self.nav_data[1], self.nav_data[2], self.nav_data[3])
+            assemble_nav(self.buf, self.nav_data[1], self.nav_data[2], self.nav_data[3], self.bat_voltage)
         gc.collect()
         return self.convert_ba_to_epd()
 
