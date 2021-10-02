@@ -179,14 +179,15 @@ def nav_routine():
             DPR.nav_data = [nav_id, nav_dir, dist, street]
             render = DPR.render()
 
-            if (dist > 200) & (nav_id != last_nav): # only do full refresh if we have more than 200+m amd new instruction
-                log.log("Cycling display...")
-                EPD.display_cycle(render, cycle=True)
+            if (dist > 200): 
+                if (street != last_nav): # only do full refresh if we have more than 200m and new street
+                    log.log("Cycling display...")
+                    EPD.display_cycle(render, cycle=True)
                 time.sleep(5)
             else:
                 EPD.display_cycle(render, cycle=False)
             del render
-            last_nav = nav_id
+            last_nav = street
 
         else:
             log.log("No nav data available.")
