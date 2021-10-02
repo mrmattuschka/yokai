@@ -66,8 +66,14 @@ class DisplayRenderer():
         self.logger = logger
 
     def convert_ba_to_epd(self):
-        render = [self.ba[row * 250 + col] for col in range(self.w) for row in range(self.h//8)]
-        return memoryview(bytearray(reversed(render)))
+        render_ba = bytearray(self.w * (self.h // 8))
+        i = 1
+        for col in range(self.w):
+            for row in range(self.h // 8):
+                render_ba[-i] = self.ba[row * 250 + col]
+                i += 1
+
+        return memoryview(render_ba)
 
     def render(self):
         self.buf.fill(0xFF)
