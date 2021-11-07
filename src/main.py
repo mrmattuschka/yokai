@@ -6,7 +6,7 @@ import struct
 import time
 import epd2in13_V2
 from utils import Logger, DisplayRenderer
-from machine import Pin, ADC
+from machine import Pin, ADC, deepsleep
 
 class KomootError(Exception):
     pass
@@ -213,4 +213,5 @@ while failures < 10:
         failures = 0
 else:
     DPR.mode = "term"
-    log.log("Too many failures. Cycle device to try again.")
+    log.log(">10 failures, going into deep sleep.\nCycle device to try again.")
+    deepsleep()
