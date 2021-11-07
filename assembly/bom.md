@@ -10,9 +10,10 @@
 | T 215 miniature slide switch | 1 |  |
 | M2 screws, 5 mm, sunken head | 4 |  |
 | M2 screws, 5 mm, round head + nuts | 2 | Come with e-Paper display |
-| M1.3 screws, 4mm | 7 (+2 nuts) | [These work well](https://www.amazon.de/dp/B075SCV69H/ref=cm_sw_em_r_mt_dp_Y26N9AWJ7ZG0QT24DFXA?_encoding=UTF8&psc=1) |
+| M1.3 screws, 4mm | 7 (+2 nuts) | [These](https://www.amazon.de/dp/B075SCV69H/ref=cm_sw_em_r_mt_dp_Y26N9AWJ7ZG0QT24DFXA?_encoding=UTF8&psc=1) aren't exactly M1.2 but work well|
 | Polycarbonate screen 1 mm, UV resistant, cut to 52.5 x 33 mm | 1 |  |
 | Case top (3D print) | 1 | [STL](./3d_prints/Case_Top.3mf) |
 | Case bottom (3D print) | 1 | [STL](./3d_prints/Case_Bottom.3mf)  |
 | Bracket to mount ESP (3D print) | 1 | [STL](./3d_prints/ESP_Bracket.3mf)  |
 | Washers, 4 x 1.6 x 0.6 mm (3D print) | 1 | [STL](./3d_prints/4x1.6x0.6_washer.3mf) |
+| Velcro strap | 1 | 20 cm for bike handles, 30 cm to strap to your wrist |
