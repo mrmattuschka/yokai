@@ -2,11 +2,12 @@
 
 <img src="./doc_images/photo.png" alt="YOKAI" style="width:500px"/>
 
-Yokai is an open-source navigation instruction display based on an ESP32 microcontroller that hooks into [Komoot](https://apps.apple.com/app/komoot/id447374873)'s Bluetooth API running on a smartphone (currently only supporting iOS).
+Yokai is an open-source navigation instruction display based on an ESP32 microcontroller running MicroPython.
+It hooks into [Komoot](https://apps.apple.com/app/komoot/id447374873)'s Bluetooth API running on a smartphone (currently only supporting iOS).
 While Komoot is responsible for all the GPS and navigation magic, Yokai merely display the navigation instructions while your phone sits snugly in your pocket. Using a velcro strap, you can attach it to a bike handle or wear it on your wrist.
-The e-Paper display ensures great visibility outdoors, and together with communication over Bluetooth Low Energy (BLE) the power consumption is minimal: your phone will run out of juice long before Yokai. And compared to your usual cike computer this thing is dirt cheap.
+The e-Paper display ensures great visibility outdoors, and together with communication over Bluetooth Low Energy (BLE) the power consumption is minimal: your phone will run out of juice long before Yokai. And compared to your usual bike computer this thing is dirt cheap.
 
-The name "Yōkai" stems from japanese folklore, where it describes supernatural spirits and entities.
+The name "Yōkai" stems from Japanese folklore, where it describes supernatural spirits and entities.
 
 
 
