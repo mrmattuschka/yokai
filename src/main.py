@@ -1,4 +1,4 @@
-__version__ = "0.1.1"
+__version__ = "0.1.2"
 __yokai_model__ = "1"
 
 import sync_ubt
@@ -7,6 +7,7 @@ import time
 import epd2in13_V2
 from utils import Logger, DisplayRenderer
 from machine import Pin, ADC, deepsleep
+import os
 
 class KomootError(Exception):
     pass
@@ -29,7 +30,8 @@ failures = 0
 
 
 log = Logger(max_len=12)
-log.log("YOKAI model {m} firmware v{v}".format(m = __yokai_model__, v = __version__))
+mp_v = os.uname().release
+log.log("YOKAI model {m} firmware v{v}\nmicropython {mp_v}".format(m = __yokai_model__, v = __version__, mp_v = mp_v))
 
 # Display properties
 w = 250
@@ -179,13 +181,15 @@ def nav_routine():
             DPR.nav_data = [nav_id, nav_dir, dist, street]
             render = DPR.render()
 
-            if (dist > 200): 
-                if (street != last_nav): # only do full refresh if we have more than 200m and new street
-                    log.log("Cycling display...")
-                    EPD.display_cycle(render, cycle=True)
-                time.sleep(5)
+            if ((dist > 200) & (street != last_nav)): 
+                # only do full refresh if we have more than 200m and new street
+                log.log("Cycling display...")
+                EPD.display_cycle(render, cycle=True)
+                #time.sleep(5)
             else:
                 EPD.display_cycle(render, cycle=False)
+            if (dist > 200):
+                time.sleep(5)
             del render
             last_nav = street
 
